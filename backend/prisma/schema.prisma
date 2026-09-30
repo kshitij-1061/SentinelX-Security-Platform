@@ -1,0 +1,552 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  createdAt   DateTime         @default(now())
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  createdAt   DateTime         @default(now())
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  password  String
+  fullName  String
+  isActive  Boolean    @default(true)
+  roleId    String
+  role      Role       @relation(fields: [roleId], references: [id])
+  auditLogs AuditLog[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([email])
+  @@map("users")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  status     String   @default("SUCCESS")
+  resource   String?
+  resourceId String?
+  ipAddress  String?
+  userAgent  String?
+  metadata   String?  // JSON stringified metadata for SQLite compatibility
+  createdAt  DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Asset {
+  id                     String               @id @default(uuid())
+  hostname               String
+  ipAddress              String
+  macAddress             String?
+  assetType              String               @default("SERVER") // SERVER, WORKSTATION, ROUTER, SWITCH, FIREWALL, DATABASE, CLOUD_INSTANCE
+  operatingSystem        String?
+  operatingSystemVersion String?
+  environment            String?              @default("PRODUCTION") // PRODUCTION, STAGING, DEVELOPMENT, LAB
+  criticality            String               @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  owner                  String?
+  department             String?
+  location               String?
+  status                 String               @default("ACTIVE") // ACTIVE, INACTIVE, DECOMMISSIONED
+  firstSeen              DateTime             @default(now())
+  lastSeen               DateTime             @default(now())
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  services               AssetService[]
+  software               AssetSoftware[]
+  vulnerabilities        AssetVulnerability[]
+  remediations           RemediationTask[]
+  securityEvents         SecurityEvent[]
+  alerts                 Alert[]
+  attackPathNodes        AttackPathNode[]
+  incidents              IncidentAsset[]
+
+  @@index([hostname])
+  @@index([ipAddress])
+  @@index([status])
+  @@index([assetType])
+  @@index([criticality])
+  @@index([environment])
+  @@index([lastSeen])
+  @@map("assets")
+}
+
+model AssetService {
+  id             String   @id @default(uuid())
+  assetId        String
+  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  protocol       String   @default("TCP")
+  port           Int
+  serviceName    String
+  serviceVersion String?
+  status         String   @default("OPEN")
+  discoveredAt   DateTime @default(now())
+
+  @@index([assetId])
+  @@index([port])
+  @@map("asset_services")
+}
+
+model AssetSoftware {
+  id           String    @id @default(uuid())
+  assetId      String
+  asset        Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  name         String
+  version      String
+  vendor       String?
+  installedAt  DateTime?
+  discoveredAt DateTime  @default(now())
+
+  @@index([assetId])
+  @@index([name])
+  @@map("asset_software")
+}
+
+model Vulnerability {
+  id                      String               @id @default(uuid())
+  vulnerabilityIdentifier String               @unique // VULN-2026-001 or CVE identifier
+  cve                     String?              // e.g. CVE-2023-38606
+  title                   String
+  description             String
+  severity                String               @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  cvssScore               Float                @default(5.0) // 0.0 - 10.0
+  affectedSoftware        String
+  affectedVersion         String
+  source                  String               @default("MANUAL") // NVD, INTERNAL, SCANNER, MANUAL
+  exploitability          String               @default("UNPROVEN") // UNPROVEN, PROOF_OF_CONCEPT, FUNCTIONAL, HIGH
+  remediation             String
+  status                  String               @default("OPEN") // OPEN, IN_PROGRESS, MITIGATED, RESOLVED, ACCEPTED_RISK
+  discoveredAt            DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  assets                  AssetVulnerability[]
+  remediations            RemediationTask[]
+
+  @@index([severity])
+  @@index([status])
+  @@index([cve])
+  @@index([cvssScore])
+  @@map("vulnerabilities")
+}
+
+model AssetVulnerability {
+  id              String        @id @default(uuid())
+  assetId         String
+  vulnerabilityId String
+  detectedVersion String
+  exposure        String        @default("INTERNAL") // INTERNAL, EXTERNAL_FACING, DMZ, AIR_GAPPED
+  discoveredAt    DateTime      @default(now())
+  status          String        @default("OPEN") // OPEN, IN_PROGRESS, MITIGATED, RESOLVED, ACCEPTED_RISK
+  notes           String?
+  asset           Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  vulnerability   Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, vulnerabilityId])
+  @@index([assetId])
+  @@index([vulnerabilityId])
+  @@index([status])
+  @@map("asset_vulnerabilities")
+}
+
+model RemediationTask {
+  id              String        @id @default(uuid())
+  vulnerabilityId String
+  assetId         String
+  assignedTo      String        @default("Unassigned")
+  priority        String        @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status          String        @default("OPEN") // OPEN, IN_PROGRESS, COMPLETED, VERIFIED, CANCELLED
+  dueDate         DateTime?
+  description     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  vulnerability   Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  asset           Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([vulnerabilityId])
+  @@index([assetId])
+  @@index([status])
+  @@map("remediation_tasks")
+}
+
+model SecurityEvent {
+  id               String          @id @default(uuid())
+  timestamp        DateTime        @default(now())
+  source           String          @default("GENERIC_JSON") // SURICATA, ZEEK, SYSLOG, HONEYPOT, GENERIC_JSON
+  eventType        String          @default("SECURITY_EVENT") // NETWORK_FLOW, DNS_QUERY, PROCESS_CREATION, AUTHENTICATION, HONEYPOT_INTERACTION
+  sourceIP         String?
+  destinationIP    String?
+  sourcePort       Int?
+  destinationPort  Int?
+  protocol         String?
+  username         String?
+  hostname         String?
+  process          String?
+  command          String?
+  rawEvent         String          // Raw JSON string payload
+  normalizedFields String?         // JSON stringified normalized key-values
+  severity         String          @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+  assetId          String?
+  asset            Asset?          @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  alerts           Alert[]
+  createdAt        DateTime        @default(now())
+  honeypotEvents   HoneypotEvent[]
+
+  @@index([source])
+  @@index([eventType])
+  @@index([sourceIP])
+  @@index([severity])
+  @@index([timestamp])
+  @@map("security_events")
+}
+
+model DetectionRule {
+  id             String   @id @default(uuid())
+  name           String
+  description    String
+  severity       String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  source         String   @default("CUSTOM") // CUSTOM, SIGMA, SURICATA
+  ruleDefinition String   // JSON stringified rule conditions
+  enabled        Boolean  @default(true)
+  mitreTechnique String?  // e.g. T1110.001, T1059.001
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  alerts         Alert[]
+
+  @@index([severity])
+  @@index([source])
+  @@index([enabled])
+  @@map("detection_rules")
+}
+
+model Alert {
+  id                 String            @id @default(uuid())
+  detectionRuleId    String
+  severity           String            @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  timestamp          DateTime          @default(now())
+  sourceEventId      String
+  assetId            String?
+  description        String
+  status             String            @default("NEW") // NEW, ACKNOWLEDGED, INVESTIGATING, RESOLVED, FALSE_POSITIVE
+  confidence         Float             @default(1.0)
+  mitreTechnique     String?
+  correlationGroupId String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  detectionRule      DetectionRule     @relation(fields: [detectionRuleId], references: [id], onDelete: Cascade)
+  sourceEvent        SecurityEvent     @relation(fields: [sourceEventId], references: [id], onDelete: Cascade)
+  asset              Asset?            @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  correlationGroup   CorrelationGroup? @relation(fields: [correlationGroupId], references: [id], onDelete: SetNull)
+  incidents          IncidentAlert[]
+
+  @@index([severity])
+  @@index([status])
+  @@index([timestamp])
+  @@index([mitreTechnique])
+  @@map("alerts")
+}
+
+model Honeypot {
+  id          String            @id @default(uuid())
+  name        String
+  type        String            @default("SSH") // SSH, HTTP, DATABASE_SIMULATION
+  hostname    String
+  ip          String
+  port        Int
+  status      String            @default("ACTIVE") // ACTIVE, INACTIVE
+  description String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  events      HoneypotEvent[]
+  sessions    HoneypotSession[]
+
+  @@index([type])
+  @@index([status])
+  @@map("honeypots")
+}
+
+model HoneypotEvent {
+  id              String        @id @default(uuid())
+  honeypotId      String
+  timestamp       DateTime      @default(now())
+  sourceIP        String
+  destinationIP   String
+  protocol        String        @default("TCP")
+  service         String        @default("SSH")
+  username        String?
+  sessionId       String?
+  eventType       String        @default("PROBE")
+  requestData     String?
+  commandData     String?
+  rawEvent        String
+  securityEventId String?
+  honeypot        Honeypot      @relation(fields: [honeypotId], references: [id], onDelete: Cascade)
+  securityEvent   SecurityEvent? @relation(fields: [securityEventId], references: [id], onDelete: SetNull)
+
+  @@index([honeypotId])
+  @@index([sourceIP])
+  @@index([timestamp])
+  @@map("honeypot_events")
+}
+
+model HoneypotSession {
+  id         String   @id @default(uuid())
+  honeypotId String
+  sourceIP   String
+  startedAt  DateTime @default(now())
+  endedAt    DateTime?
+  eventCount Int      @default(1)
+  status     String   @default("ACTIVE") // ACTIVE, CLOSED
+  honeypot   Honeypot @relation(fields: [honeypotId], references: [id], onDelete: Cascade)
+
+  @@index([honeypotId])
+  @@index([sourceIP])
+  @@index([status])
+  @@map("honeypot_sessions")
+}
+
+model CorrelationGroup {
+  id              String   @id @default(uuid())
+  name            String
+  startTime       DateTime @default(now())
+  endTime         DateTime @default(now())
+  severity        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  confidence      Float    @default(0.85)
+  reason          String
+  affectedAssets  String   // JSON stringified array of asset IDs
+  mitreTechniques String   // JSON stringified array of technique IDs
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  alerts          Alert[]
+  incidents       Incident[]
+
+  @@index([severity])
+  @@index([createdAt])
+  @@map("correlation_groups")
+}
+
+model ThreatIndicator {
+  id          String   @id @default(uuid())
+  type        String   // IP, DOMAIN, URL, HASH
+  value       String   @unique
+  source      String   @default("MANUAL") // NVD, MISP, INTERNAL, MANUAL
+  confidence  Float    @default(0.9)
+  firstSeen   DateTime @default(now())
+  lastSeen    DateTime @default(now())
+  tags        String   // JSON stringified array of tags
+  description String
+
+  @@index([type])
+  @@index([value])
+  @@map("threat_indicators")
+}
+
+model MitreTechnique {
+  id           String  @id @default(uuid())
+  techniqueId  String  @unique // e.g. T1110, T1059.001
+  name         String
+  tactic       String  // Initial Access, Execution, Persistence, Privilege Escalation, Command and Control
+  subTechnique Boolean @default(false)
+  description  String
+
+  @@index([techniqueId])
+  @@index([tactic])
+  @@map("mitre_techniques")
+}
+
+model AttackPath {
+  id          String             @id @default(uuid())
+  name        String
+  description String
+  startNodeId String
+  targetNodeId String
+  severity    String             @default("HIGH") // LOW, MEDIUM, HIGH, CRITICAL
+  riskScore   Float              @default(75.0) // 0 - 100
+  pathLength  Int                @default(3)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  nodes       AttackPathNode[]
+  edges       AttackPathEdge[]
+  risks       RiskAssessment[]
+
+  @@index([severity])
+  @@index([riskScore])
+  @@map("attack_paths")
+}
+
+model AttackPathNode {
+  id           String         @id @default(uuid())
+  attackPathId String
+  assetId      String?
+  nodeType     String         @default("ASSET") // INTERNET, ASSET, SERVICE, USER, CRITICAL_DATA
+  label        String
+  stepIndex    Int            @default(0)
+  metadata     String?        // JSON stringified attributes
+  attackPath   AttackPath     @relation(fields: [attackPathId], references: [id], onDelete: Cascade)
+  asset        Asset?         @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  outgoingEdges AttackPathEdge[] @relation("SourceNode")
+  incomingEdges AttackPathEdge[] @relation("TargetNode")
+
+  @@index([attackPathId])
+  @@index([assetId])
+  @@map("attack_path_nodes")
+}
+
+model AttackPathEdge {
+  id           String         @id @default(uuid())
+  attackPathId String
+  sourceNodeId String
+  targetNodeId String
+  edgeType     String         @default("NETWORK_CONNECTIVITY") // NETWORK_CONNECTIVITY, TRUST_RELATIONSHIP, VULNERABLE_EXPOSURE, PRIVILEGE_ACCESS
+  description  String
+  weight       Float          @default(1.0)
+  attackPath   AttackPath     @relation(fields: [attackPathId], references: [id], onDelete: Cascade)
+  sourceNode   AttackPathNode @relation("SourceNode", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode   AttackPathNode @relation("TargetNode", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  @@index([attackPathId])
+  @@map("attack_path_edges")
+}
+
+model RiskAssessment {
+  id                    String     @id @default(uuid())
+  attackPathId          String
+  riskScore             Float      @default(80.0)
+  riskGrade             String     @default("HIGH")
+  criticalityFactor     Float      @default(1.5)
+  vulnerabilityFactor   Float      @default(1.4)
+  exposureFactor        Float      @default(1.3)
+  alertEvidenceFactor   Float      @default(1.2)
+  explanation           String     // JSON stringified factor breakdown
+  createdAt             DateTime   @default(now())
+  attackPath            AttackPath @relation(fields: [attackPathId], references: [id], onDelete: Cascade)
+
+  @@index([attackPathId])
+  @@map("risk_assessments")
+}
+
+model Incident {
+  id                 String            @id @default(uuid())
+  title              String
+  description        String
+  severity           String            @default("HIGH") // LOW, MEDIUM, HIGH, CRITICAL
+  status             String            @default("NEW") // NEW, TRIAGED, INVESTIGATING, CONTAINED, RESOLVED, CLOSED, FALSE_POSITIVE
+  confidence         Float             @default(0.9)
+  detectedAt         DateTime          @default(now())
+  resolvedAt         DateTime?
+  assignedAnalyst    String            @default("Unassigned")
+  resolution         String?
+  correlationGroupId String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  correlationGroup   CorrelationGroup? @relation(fields: [correlationGroupId], references: [id], onDelete: SetNull)
+  alerts             IncidentAlert[]
+  assets             IncidentAsset[]
+  evidence           IncidentEvidence[]
+  notes              IncidentNote[]
+  actions            IncidentAction[]
+
+  @@index([severity])
+  @@index([status])
+  @@index([detectedAt])
+  @@map("incidents")
+}
+
+model IncidentAlert {
+  incidentId String
+  alertId    String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  alert      Alert    @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@id([incidentId, alertId])
+  @@map("incident_alerts")
+}
+
+model IncidentAsset {
+  incidentId String
+  assetId    String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([incidentId, assetId])
+  @@map("incident_assets")
+}
+
+model IncidentEvidence {
+  id          String   @id @default(uuid())
+  incidentId  String
+  type        String   @default("LOG_EXTRACT") // LOG_EXTRACT, NETWORK_PCAP, MEMORY_DUMP, ARTIFACT_HASH
+  description String
+  source      String
+  reference   String
+  createdBy   String   @default("SOC Analyst")
+  createdAt   DateTime @default(now())
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("incident_evidence")
+}
+
+model IncidentNote {
+  id         String   @id @default(uuid())
+  incidentId String
+  author     String
+  content    String
+  createdAt  DateTime @default(now())
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("incident_notes")
+}
+
+model IncidentAction {
+  id         String   @id @default(uuid())
+  incidentId String
+  analyst    String
+  action     String   // BLOCK_TEST_IP, DISABLE_TEST_ACCOUNT, ISOLATE_TEST_ENDPOINT, ADD_TEST_BLOCKLIST
+  target     String
+  reason     String
+  result     String   @default("SUCCESS")
+  mode       String   @default("SAFE_SIMULATION")
+  createdAt  DateTime @default(now())
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+  @@map("incident_actions")
+}
