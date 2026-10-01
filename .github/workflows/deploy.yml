@@ -1,0 +1,89 @@
+name: CI/CD Pipeline & Deployment Verification
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cyber_user
+          POSTGRES_PASSWORD: cyber_password123
+          POSTGRES_DB: cyber_defense_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Setup Database & Generate Prisma Client
+        env:
+          DATABASE_URL: "postgresql://cyber_user:cyber_password123@localhost:5432/cyber_defense_db?schema=public"
+        run: |
+          cd backend
+          npx prisma db push
+          npx prisma db seed
+
+      - name: Run Backend Test Suite (11 Test Suites, 61 Tests)
+        env:
+          DATABASE_URL: "postgresql://cyber_user:cyber_password123@localhost:5432/cyber_defense_db?schema=public"
+          JWT_SECRET: "test-ci-cd-signing-key-minimum-32-bytes"
+        run: |
+          cd backend
+          npm test
+
+      - name: Build Backend TypeScript
+        run: |
+          cd backend
+          npm run build
+
+  frontend-test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Next.js Production Build Verification
+        env:
+          NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1"
+        run: |
+          cd frontend
+          npm run build
