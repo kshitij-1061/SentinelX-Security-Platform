@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const honeypot_controller_1 = require("../../controllers/honeypot.controller");
+const auth_middleware_1 = require("../../middleware/auth.middleware");
+const rbac_middleware_1 = require("../../middleware/rbac.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.get("/honeypots", (0, rbac_middleware_1.requirePermission)("HONEYPOT_READ"), honeypot_controller_1.listHoneypots);
+router.post("/honeypots", (0, rbac_middleware_1.requirePermission)("HONEYPOT_CREATE"), honeypot_controller_1.createHoneypot);
+router.get("/honeypots/:id", (0, rbac_middleware_1.requirePermission)("HONEYPOT_READ"), honeypot_controller_1.getHoneypotById);
+router.patch("/honeypots/:id", (0, rbac_middleware_1.requirePermission)("HONEYPOT_UPDATE"), honeypot_controller_1.updateHoneypot);
+router.get("/honeypot-events", (0, rbac_middleware_1.requirePermission)("HONEYPOT_EVENT_READ"), honeypot_controller_1.listHoneypotEvents);
+router.post("/honeypot-events", (0, rbac_middleware_1.requirePermission)("HONEYPOT_CREATE"), honeypot_controller_1.ingestHoneypotEvent);
+router.get("/honeypots/:id/sessions", (0, rbac_middleware_1.requirePermission)("HONEYPOT_READ"), honeypot_controller_1.getHoneypotSessions);
+exports.default = router;

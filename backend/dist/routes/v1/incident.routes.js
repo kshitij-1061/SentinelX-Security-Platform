@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const incident_controller_1 = require("../../controllers/incident.controller");
+const auth_middleware_1 = require("../../middleware/auth.middleware");
+const rbac_middleware_1 = require("../../middleware/rbac.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.get("/incidents", (0, rbac_middleware_1.requirePermission)("INCIDENT_READ"), incident_controller_1.listIncidents);
+router.post("/incidents", (0, rbac_middleware_1.requirePermission)("INCIDENT_CREATE"), incident_controller_1.createIncident);
+router.get("/incidents/:id", (0, rbac_middleware_1.requirePermission)("INCIDENT_READ"), incident_controller_1.getIncidentById);
+router.patch("/incidents/:id", (0, rbac_middleware_1.requirePermission)("INCIDENT_UPDATE"), incident_controller_1.updateIncident);
+router.get("/incidents/:id/timeline", (0, rbac_middleware_1.requirePermission)("INCIDENT_READ"), incident_controller_1.getIncidentTimeline);
+router.post("/incidents/:id/evidence", (0, rbac_middleware_1.requirePermission)("INCIDENT_UPDATE"), incident_controller_1.addEvidence);
+router.post("/incidents/:id/notes", (0, rbac_middleware_1.requirePermission)("INCIDENT_UPDATE"), incident_controller_1.addNote);
+router.post("/incidents/:id/actions", (0, rbac_middleware_1.requirePermission)("RESPONSE_SIMULATE"), incident_controller_1.executeResponseAction);
+exports.default = router;

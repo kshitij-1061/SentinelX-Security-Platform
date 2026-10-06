@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const attack_path_controller_1 = require("../../controllers/attack-path.controller");
+const auth_middleware_1 = require("../../middleware/auth.middleware");
+const rbac_middleware_1 = require("../../middleware/rbac.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.get("/attack-paths", (0, rbac_middleware_1.requirePermission)("ATTACK_PATH_READ"), attack_path_controller_1.listAttackPaths);
+router.post("/attack-paths/analyze", (0, rbac_middleware_1.requirePermission)("ATTACK_PATH_ANALYZE"), attack_path_controller_1.analyzeAttackPaths);
+router.get("/attack-paths/:id", (0, rbac_middleware_1.requirePermission)("ATTACK_PATH_READ"), attack_path_controller_1.getAttackPathById);
+router.get("/attack-paths/:id/risk", (0, rbac_middleware_1.requirePermission)("RISK_READ"), attack_path_controller_1.getPathRiskAssessment);
+exports.default = router;

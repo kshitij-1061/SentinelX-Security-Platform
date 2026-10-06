@@ -84,7 +84,7 @@ export class IncidentService {
     });
 
     // Alert triggers
-    incident.alerts.forEach((link) => {
+    incident.alerts.forEach((link: any) => {
       timeline.push({
         timestamp: link.alert.timestamp,
         type: "ALERT_TRIGGERED",
@@ -95,7 +95,7 @@ export class IncidentService {
     });
 
     // Evidence additions
-    incident.evidence.forEach((ev) => {
+    incident.evidence.forEach((ev: any) => {
       timeline.push({
         timestamp: ev.createdAt,
         type: "EVIDENCE_ADDED",
@@ -106,7 +106,7 @@ export class IncidentService {
     });
 
     // Analyst notes
-    incident.notes.forEach((n) => {
+    incident.notes.forEach((n: any) => {
       timeline.push({
         timestamp: n.createdAt,
         type: "ANALYST_NOTE",
@@ -117,7 +117,7 @@ export class IncidentService {
     });
 
     // Response actions
-    incident.actions.forEach((act) => {
+    incident.actions.forEach((act: any) => {
       timeline.push({
         timestamp: act.createdAt,
         type: "RESPONSE_ACTION",

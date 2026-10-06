@@ -62,11 +62,11 @@ export class DashboardService {
 
     // Format time-series placeholder / aggregated counts for Recharts frontend rendering
     return {
-      vulnerabilitiesBySeverity: vulnerabilitiesBySeverity.map((v) => ({ severity: v.severity, count: v._count.id })),
-      incidentsBySeverity: incidentsBySeverity.map((i) => ({ severity: i.severity, count: i._count.id })),
-      alertsBySeverity: alertsBySeverity.map((a) => ({ severity: a.severity, count: a._count.id })),
-      assetsByCriticality: assetsByCriticality.map((ast) => ({ criticality: ast.criticality, count: ast._count.id })),
-      assetsByType: assetsByType.map((ast) => ({ assetType: ast.assetType, count: ast._count.id })),
+      vulnerabilitiesBySeverity: vulnerabilitiesBySeverity.map((v: any) => ({ severity: v.severity, count: v._count.id })),
+      incidentsBySeverity: incidentsBySeverity.map((i: any) => ({ severity: i.severity, count: i._count.id })),
+      alertsBySeverity: alertsBySeverity.map((a: any) => ({ severity: a.severity, count: a._count.id })),
+      assetsByCriticality: assetsByCriticality.map((ast: any) => ({ criticality: ast.criticality, count: ast._count.id })),
+      assetsByType: assetsByType.map((ast: any) => ({ assetType: ast.assetType, count: ast._count.id })),
       mitreTechniques
     };
   }

@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const correlation_controller_1 = require("../../controllers/correlation.controller");
+const auth_middleware_1 = require("../../middleware/auth.middleware");
+const rbac_middleware_1 = require("../../middleware/rbac.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.get("/correlations", (0, rbac_middleware_1.requirePermission)("CORRELATION_READ"), correlation_controller_1.listCorrelations);
+router.post("/correlations/run", (0, rbac_middleware_1.requirePermission)("CORRELATION_CREATE"), correlation_controller_1.runCorrelation);
+router.get("/correlations/:id", (0, rbac_middleware_1.requirePermission)("CORRELATION_READ"), correlation_controller_1.getCorrelationById);
+exports.default = router;

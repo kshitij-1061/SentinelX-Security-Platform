@@ -120,7 +120,7 @@ export class AuthService {
       throw new AppError("User account is disabled.", 400, "ACCOUNT_DISABLED");
     }
 
-    const permissions = user.role.permissions.map((rp) => rp.permission.name);
+    const permissions = user.role.permissions.map((rp: any) => rp.permission.name);
     const token = jwt.sign(
       {
         sub: user.id,
