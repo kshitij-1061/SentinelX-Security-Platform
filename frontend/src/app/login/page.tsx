@@ -29,7 +29,7 @@ export default function LoginPage() {
       if (err.response?.data?.error?.message) {
         setError(err.response.data.error.message);
       } else {
-        const targetUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+        const targetUrl = process.env.NEXT_PUBLIC_API_URL || "https://sentinelx-security-platform.onrender.com/api/v1";
         setError(`Failed to connect to API target [${targetUrl}]. Ensure backend on Render is online & Vercel NEXT_PUBLIC_API_URL is set.`);
       }
     } finally {
@@ -53,7 +53,7 @@ export default function LoginPage() {
       if (err.response?.data?.error?.message) {
         setError(err.response.data.error.message);
       } else {
-        const targetUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+        const targetUrl = process.env.NEXT_PUBLIC_API_URL || "https://sentinelx-security-platform.onrender.com/api/v1";
         setError(`Registration failed connecting to [${targetUrl}]. Ensure backend on Render is online.`);
       }
     } finally {
