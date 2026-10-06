@@ -29,7 +29,8 @@ export default function LoginPage() {
       if (err.response?.data?.error?.message) {
         setError(err.response.data.error.message);
       } else {
-        setError("Failed to authenticate. Ensure backend server is online.");
+        const targetUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+        setError(`Failed to connect to API target [${targetUrl}]. Ensure backend on Render is online & Vercel NEXT_PUBLIC_API_URL is set.`);
       }
     } finally {
       setLoading(false);
@@ -52,7 +53,8 @@ export default function LoginPage() {
       if (err.response?.data?.error?.message) {
         setError(err.response.data.error.message);
       } else {
-        setError("Registration failed.");
+        const targetUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+        setError(`Registration failed connecting to [${targetUrl}]. Ensure backend on Render is online.`);
       }
     } finally {
       setLoading(false);
