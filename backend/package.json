@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^1.4.0",
-    "@node-rs/argon2-win32-x64-msvc": "^1.4.0",
     "@prisma/client": "^5.11.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
